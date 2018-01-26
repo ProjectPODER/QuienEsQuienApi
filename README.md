@@ -1,5 +1,7 @@
 # Api.QuienEsQuien.Wiki
 
+[![Build Status](https://travis-ci.org/kyv/QuienEsQuienApi.svg?branch=daily)](https://travis-ci.org/kyv/QuienEsQuienApi)
+
 Built on [Swagger/OpenAPI](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md), [nodejs](https://nodejs.org/en/) and [express](https://expressjs.com/).
 
   * API: api.quienesquien.wiki/v1/{persons,organizations,contracts,memberships}

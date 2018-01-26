@@ -1,0 +1,78 @@
+# QuienEsQuienAPI CircleCI 2.0 configuration file
+version: 2
+general:
+  branches:
+    only:
+      - daily
+jobs:
+  build:
+    docker:
+      - image: circleci/node:8.3
+      - image: circleci/mongo:3.4.4
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "package.json" }}
+          - v1-dependencies-
+
+      - run: yarn install
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+
+      - run:
+          command: MONGODB_URI=localhost:27017/runner yarn test
+          name: test
+
+  deploy-dev:
+    docker:
+      - image: docker:stable-git
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run: |
+          docker build -t poder/quienesquienapi:$CIRCLE_BRANCH .
+          docker login -u $DOCKER_USER -p $DOCKER_PASS
+          docker push poder/quienesquienapi:$CIRCLE_BRANCH
+
+  deploy-pro:
+    docker:
+      - image: docker:stable-git
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run: apk --no-cache add jq
+      - run: |
+          export VERSION=$(cat package.json | jq -r .version)
+          docker build -t poder/quienesquienapi:$VERSION .
+          docker login -u $DOCKER_USER -p $DOCKER_PASS
+          docker push poder/quienesquienapi:$VERSION
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /v.*/
+      - deploy-dev:
+          requires:
+            - build
+      - deploy-pro:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /v.*/
+            branches:
+              ignore: /.*/

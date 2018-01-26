@@ -1,0 +1,14 @@
+language: node_js
+node_js:
+  - 8
+
+env:
+  - MONGODB_URI=localhost:27017/runner
+
+services:
+  - mongodb
+
+cache:
+  directories:
+    - "node_modules"
+
