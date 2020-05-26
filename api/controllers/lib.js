@@ -30,6 +30,8 @@ function parseDates(string) {
     return string;
   }
 
+  //TODO: Some contract IDs look like dates to nodejs and they fail
+
   // console.log('parseDates',string);
   const object = new Date(string);
   const isValidDate = moment(object).isValid();
@@ -38,12 +40,6 @@ function parseDates(string) {
     return object.toISOString();
   }
   return string;
-}
-
-function simpleName(string) {
-  return removeDiacritics(string)
-    .replace(/[,.]/g, '') // remove commas and periods
-    .toLowerCase();
 }
 
 function getQuery(req, debug) {
@@ -649,7 +645,6 @@ async function addGraphs(collection, array, db) {
 module.exports = {
   personMemberMap,
   omitEmpty,
-  simpleName,
   queryToPipeline,
   arrayResultsOptions,
   getQuery,
