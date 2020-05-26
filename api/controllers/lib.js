@@ -195,14 +195,6 @@ function arrayResultsOptions(query, pipeline) {
   return pipeline;
 }
 
-function personMemberMap(doc) {
-  const member = extend(doc, {
-    org_id: doc.sob_org,
-  });
-
-  return omit(member, ['sob_org']);
-}
-
 function allDocuments(query, collection, JOINS, debug=false) {
   // console.log("q",query.criteria);
   if (query.criteria.debug || debug) {
@@ -346,6 +338,9 @@ async function getContracts(type, id, db, limit) {
 function addLink(relationSummary, link) {
   if (relationSummary.links.length > 1000) {
     // console.log("skipping link", link)
+
+    //addNode(relationSummary, {id: "other"})
+    // link.target=other
     return false;
   }
 
@@ -385,7 +380,8 @@ function addLink(relationSummary, link) {
   return true;
 }
 function addNode(relationSummary, node) {
-  if (relationSummary.nodes.length > 400) {
+  if (relationSummary.nodes.length > 400 && node.id != "other") {
+    // addNode(relationSummary, {id: "other"})
     return false;
   }
 
@@ -643,7 +639,6 @@ async function addGraphs(collection, array, db) {
 }
 
 module.exports = {
-  personMemberMap,
   omitEmpty,
   queryToPipeline,
   arrayResultsOptions,
