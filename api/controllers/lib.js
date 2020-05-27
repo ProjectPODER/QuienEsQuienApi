@@ -298,7 +298,7 @@ function dataReturn(res, array, offset, limit, embed, objectFormat, debug) {
 
 async function getContracts(type, id, db, limit) {
   const records = db.get('records', { castIds: false });
-  const options = { limit: `-${limit}`, sort: { 'compiledRelease.total_amount': -1 } };
+  const options = { batchSize: limit, limit: `-${limit}`, sort: { 'compiledRelease.total_amount': -1 } };
   let filter = {};
 
   switch (type) {
@@ -322,7 +322,7 @@ async function getContracts(type, id, db, limit) {
       };
       break;
   }
-  // console.log('getContracts query', `db.records.find(${JSON.stringify(filter)},${JSON.stringify(options)})`);
+  console.log('getContracts query', `db.records.find(${JSON.stringify(filter)},${JSON.stringify(options)})`);
 
   const contractsP = records.find(filter, options).catch(err => {
     // console.error("getContracts error",err);
@@ -415,17 +415,45 @@ function getMaxContractAmount(records) {
   return maxContractAmount;
 }
 
-function calculateSummaries(orgID, records) {
-  // console.log('calculateSummaries',records.length);
+function calculateSummaries(orgID, buyerContracts, supplierContracts, funderContracts) {
 
   //  Generar los objetos para cada gráfico
-  const yearSummary = {};
-  const typeSummary = {};
+
+  const summary = {
+    buyer: {
+      total: { value: 0, count: 0 },
+      type: {},
+      year: {},
+      top_contracts: buyerContracts.slice(0, 3),
+      top_entities: []
+    },
+    supplier: {
+      total: { value: 0, count: 0 },
+      type: {},
+      year: {},
+      top_contracts: supplierContracts.slice(0, 3),
+      top_entities: []
+    },
+    funder: {
+      total: { value: 0, count: 0 },
+      type: {},
+      year: {},
+      top_contracts: funderContracts.slice(0, 3),
+      top_entities: []
+    },
+    relation: { nodes: [], links: [] }
+  }
+
+
   const allBuyers = {};
   const allSuppliers = {};
   const allFundees = {};
-  const relationSummary = { nodes: [], links: [] };
+
+  const records = [...buyerContracts, ...supplierContracts, ...funderContracts];
+  console.log('calculateSummaries',records.length);
+
   const maxContractAmount = getMaxContractAmount(records);
+
 
   for (const r in records) {
     if (Object.prototype.hasOwnProperty.call(records, r)) {
@@ -440,8 +468,7 @@ function calculateSummaries(orgID, records) {
 
       const isFunderContract = funderParty ? (funderParty.id === orgID) : false;
 
-      const isBuyerContract =
-        buyerParty.id === orgID || (buyerParty.contactPoint && buyerParty.contactPoint.id === orgID) || memberOfParty && memberOfParty.memberOf[0].id === orgID;
+      const isBuyerContract = buyerParty.id === orgID || (buyerParty.contactPoint && buyerParty.contactPoint.id === orgID) || memberOfParty && memberOfParty.memberOf[0].id === orgID;
 
       for (const c in compiledRelease.contracts) {
         if (Object.prototype.hasOwnProperty.call(compiledRelease.contracts, c)) {
@@ -452,106 +479,102 @@ function calculateSummaries(orgID, records) {
           //console.log("contract.period",contract.period,compiledRelease.ocid);
 
           let year = "undefined";
+
           if (contract.period) {
             year = new Date(contract.period.startDate).getFullYear();
           }
 
-          if (isFunderContract) {
-            if (!allFundees[memberOfParty.id]) {
-              allFundees[memberOfParty.id] = memberOfParty;
-              allFundees[memberOfParty.id].contract_amount_top_funder = 0;
-              allFundees[memberOfParty.id].type = buyerParty.type;
-            }
-            allFundees[memberOfParty.id].contract_amount_top_funder += award.value.amount;
-          }
+          let currentSummary;
 
-          // To calculate top3buyers
           if (isSupplierContract) {
+            // console.log("calculateSummaries isSupplierContract",isSupplierContract);
+            currentSummary = summary.supplier;
+
+            // To calculate top3buyers
             if (memberOfParty) {
               if (!allBuyers[memberOfParty.id]) {
                 allBuyers[memberOfParty.id] = memberOfParty;
-                allBuyers[memberOfParty.id].contract_amount_top_buyer = 0;
+                allBuyers[memberOfParty.id].contract_amount = { buyer: 0};
+                allBuyers[memberOfParty.id].contract_count = { buyer: 0};
                 allBuyers[memberOfParty.id].type = buyerParty.type;
               }
-              allBuyers[memberOfParty.id].contract_amount_top_buyer += award.value.amount;
+              allBuyers[memberOfParty.id].contract_amount.buyer += award.value.amount;
+              allBuyers[memberOfParty.id].contract_count.buyer += 1;
             }
-          }
-
-          if (year != "undefined") {
-            if (!yearSummary[year]) {
-              yearSummary[year] = {
-                buyer: { value: 0, count: 0 },
-                supplier: { value: 0, count: 0 },
-                funder: { value: 0, count: 0 },
-              };
-            }
-
-            // TODO: sumar los amounts en MXN siempre
-            if (isSupplierContract) {
-              yearSummary[year].supplier.value += parseInt(contract.value.amount, 10);
-              yearSummary[year].supplier.count += 1;
-            }
-            if (isBuyerContract) {
-              yearSummary[year].buyer.value += parseInt(contract.value.amount, 10);
-              yearSummary[year].buyer.count += 1;
-            }
-            if (isFunderContract) {
-              yearSummary[year].funder.value += parseInt(contract.value.amount, 10);
-              yearSummary[year].funder.count += 1;
-            }
-
-          }
-
-          if (!typeSummary[procurementMethod]) {
-            typeSummary[procurementMethod] = {
-              buyer: { value: 0, count: 0 },
-              supplier: { value: 0, count: 0 },
-              funder: { value: 0, count: 0 },
-            };
-          }
-
-          if (isSupplierContract) {
-            typeSummary[procurementMethod].supplier.value += parseInt(contract.value.amount, 10);
-            typeSummary[procurementMethod].supplier.count += 1;
+            
           }
           if (isBuyerContract) {
-            typeSummary[procurementMethod].buyer.value += parseInt(contract.value.amount, 10);
-            typeSummary[procurementMethod].buyer.count += 1;
+            // console.log("calculateSummaries isBuyerContract",isBuyerContract);
+            currentSummary = summary.buyer;
           }
           if (isFunderContract) {
-            typeSummary[procurementMethod].funder.value += parseInt(contract.value.amount, 10);
-            typeSummary[procurementMethod].funder.count += 1;
+            // console.log("calculateSummaries isFunderContract",isFunderContract);
+            currentSummary = summary.funder;
+
+            // To calculate top3buyers
+            if (!allFundees[memberOfParty.id]) {
+              allFundees[memberOfParty.id] = memberOfParty;
+              allFundees[memberOfParty.id].contract_amount = { funder: 0};
+              allFundees[memberOfParty.id].contract_count = { funder: 0};
+              allFundees[memberOfParty.id].type = buyerParty.type;
+            }
+            allFundees[memberOfParty.id].contract_amount.funder += award.value.amount;
+            allFundees[memberOfParty.id].contract_count.funder += 1;
+
           }
-
-
+          if (!isSupplierContract&&!isBuyerContract&&!isFunderContract) {
+            // console.error("calculateSummaries no type contract",award);
+            // currentSummary = summary.buyer;
+          }
+          // console.log("calculateSummaries",summary);
+          if (currentSummary) {
+            if (year != "undefined") {
+              // TODO: sumar los amounts en MXN siempre
+              if (!currentSummary.year[year]) {
+                currentSummary.year[year] = { value: 0, count: 0 }
+              }
+  
+              currentSummary.year[year].value += parseInt(contract.value.amount, 10);
+              currentSummary.year[year].count += 1;
+  
+            }
+  
+            if (!currentSummary.type[procurementMethod]) {
+              currentSummary.type[procurementMethod] = { value: 0, count: 0 };
+            }
+  
+            currentSummary.type[procurementMethod].value += parseInt(contract.value.amount, 10);
+            currentSummary.type[procurementMethod].count += 1;
+  
+  
+            currentSummary.total.value += parseInt(contract.value.amount, 10);
+            currentSummary.total.count += 1;
+  
+          }
 
           // TODO: sumar los amounts en MXN siempre
 
           // UC
-          addNode(relationSummary, { id: buyerParty.id,label: buyerParty.name, type: buyerParty.details.type });
-          // addNode(relationSummary, { id: procurementMethod,label: procurementMethod, type: 'procurementMethod' });
-
-          // addLink(relationSummary, { source: buyerParty.id, target: procurementMethod });
-
+          addNode(summary.relation, { id: buyerParty.id,label: buyerParty.name, type: buyerParty.details.type });
           const linkWeight = Math.round((parseFloat(contract.value.amount)/parseFloat(maxContractAmount))*10);
-
-
 
           for (const a in award.suppliers) {
             if (Object.prototype.hasOwnProperty.call(award.suppliers, a)) {
               const supplierParty = find(compiledRelease.parties, { id: award.suppliers[a].id });
 
               if (supplierParty) {
-                addNode(relationSummary, { id: award.suppliers[a].id,label: award.suppliers[a].name, type: supplierParty.details.type });
-                addLink(relationSummary, { source: buyerParty.id, target: award.suppliers[a].id, weight: linkWeight, type: procurementMethod || "supplier" });
+                addNode(summary.relation, { id: award.suppliers[a].id,label: award.suppliers[a].name, type: supplierParty.details.type });
+                addLink(summary.relation, { source: buyerParty.id, target: award.suppliers[a].id, weight: linkWeight, type: procurementMethod || "supplier" });
 
                 if (isBuyerContract) {
                   // To calculate top3suppliers
                   if (!allSuppliers[supplierParty.id]) {
                     allSuppliers[supplierParty.id] = supplierParty;
-                    allSuppliers[supplierParty.id].contract_amount_top_supplier = 0;
+                    allSuppliers[supplierParty.id].contract_amount = { supplier: 0};
+                    allSuppliers[supplierParty.id].contract_count = { supplier: 0};
                   }
-                  allSuppliers[supplierParty.id].contract_amount_top_supplier += award.value.amount;
+                  allSuppliers[supplierParty.id].contract_amount.supplier += award.value.amount;
+                  allSuppliers[supplierParty.id].contract_count.supplier += 1;
                 }
               }
               // else {
@@ -564,22 +587,21 @@ function calculateSummaries(orgID, records) {
           if (buyerParty.memberOf) {
 
             if (buyerParty.memberOf[0].name) {
-              addNode(relationSummary, { id: buyerParty.memberOf[0].id, label: buyerParty.memberOf[0].name, type: "dependency" });
-              addLink(relationSummary, { source: buyerParty.id, target: buyerParty.memberOf[0].id, type: "buyer" });
+              addNode(summary.relation, { id: buyerParty.memberOf[0].id, label: buyerParty.memberOf[0].name, type: "dependency" });
+              addLink(summary.relation, { source: buyerParty.id, target: buyerParty.memberOf[0].id, type: "buyer" });
             }
           }
 
           if (funderParty) {
-            addNode(relationSummary, { id: funderParty.id,label: funderParty.name, type: funderParty.details.type });
+            addNode(summary.relation, { id: funderParty.id,label: funderParty.name, type: funderParty.details.type });
 
             if (buyerParty.memberOf) {
-              addLink(relationSummary, { source: buyerParty.memberOf[0].id, target: funderParty.id, weight: linkWeight, type: "funder" });
+              addLink(summary.relation, { source: buyerParty.memberOf[0].id, target: funderParty.id, weight: linkWeight, type: "funder" });
             }
             else {
-              addLink(relationSummary, { source: buyerParty.id, target: funderParty.id, weight: linkWeight, type: "funder" });
+              addLink(summary.relation, { source: buyerParty.id, target: funderParty.id, weight: linkWeight, type: "funder" });
             }
           }
-
         }
       }
     }
@@ -590,19 +612,10 @@ function calculateSummaries(orgID, records) {
   delete allBuyers[orgID];
   delete allSuppliers[orgID];
   delete allFundees[orgID];
-  const top3buyers = slice(0, 3, orderBy('contract_amount_top_buyer', 'desc', allBuyers));
-  const top3suppliers = slice(0, 3, orderBy('contract_amount_top_supplier', 'desc', allSuppliers));
-  const top3fundees = slice(0, 3, orderBy('contract_amount_top_funder', 'desc', allFundees));
-
-  const summary = {
-    year: yearSummary,
-    type: typeSummary,
-    relation: relationSummary,
-    top_buyers: top3buyers,
-    top_suppliers: top3suppliers,
-    top_fundees: top3fundees,
-  };
-
+  summary.supplier.top_entities = slice(0, 3, orderBy('contract_amount.supplier', 'desc', allBuyers));
+  summary.buyer.top_entities = slice(0, 3, orderBy('contract_amount.supplier', 'desc', allSuppliers));
+  summary.funder.top_entities = slice(0, 3, orderBy('contract_amount.supplier', 'desc', allFundees));
+  
   return summary;
 }
 
@@ -616,21 +629,11 @@ async function addGraphs(collection, array, db) {
       const item = array[1][index];
 
       // console.log('addContracts 2', index);
-      const buyerContracts = await getContracts('buyer', item.id, db, 100);
-      const supplierContracts = await getContracts('supplier', item.id, db, 100);
-      const funderContracts = await getContracts('funder', item.id, db, 100);
-      const allContracts = [...buyerContracts, ...supplierContracts, ...funderContracts];
+      const buyerContracts = await getContracts('buyer', item.id, db, 10000);
+      const supplierContracts = await getContracts('supplier', item.id, db, 10000);
+      const funderContracts = await getContracts('funder', item.id, db, 10000);
 
-      // extend(allContracts, supplierContracts);
-      // extend(allContracts, buyerContracts);
-      // console.log('addGraphs',allContracts.length);
-
-      item.summaries = calculateSummaries(item.id, allContracts);
-      item.top3contracts = {
-        funder: funderContracts.slice(0, 3),
-        buyer: buyerContracts.slice(0, 3),
-        supplier: supplierContracts.slice(0, 3),
-      };
+      item.summaries = calculateSummaries(item.id, buyerContracts, supplierContracts, funderContracts);
 
       // console.log('addContracts',index,array[1][index].contracts.buyer.length,array[1][index].contracts.seller.length);
     }
