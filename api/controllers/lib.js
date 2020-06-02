@@ -298,7 +298,11 @@ function dataReturn(res, array, offset, limit, embed, objectFormat, debug) {
 
 async function getContracts(type, id, db, limit) {
   const records = db.get('records', { castIds: false });
-  const options = { batchSize: limit, limit: `-${limit}`, sort: { 'compiledRelease.total_amount': -1 } };
+  const options = { 
+    batchSize: limit, 
+    limit: `-${limit}`, 
+    sort: { 'compiledRelease.total_amount': -1}, 
+  } ;
   let filter = {};
 
   switch (type) {
@@ -308,6 +312,9 @@ async function getContracts(type, id, db, limit) {
         { 'compiledRelease.parties.memberOf.id': id },
         { 'compiledRelease.parties.contactPoint.id': id },
       ] };
+
+      options.hint = "compiledRelease.total_amount_1"  ;
+
 
       break;
     case "supplier":
@@ -325,11 +332,8 @@ async function getContracts(type, id, db, limit) {
   console.log('getContracts query', `db.records.find(${JSON.stringify(filter)},${JSON.stringify(options)})`);
 
   const contractsP = records.find(filter, options).catch(err => {
-    // console.error("getContracts error",err);
-    if (err) {
-      return 'error: {err}';
-    }
-    return err;
+    console.error("getContracts error",err);
+    return [];
   });
 
   return contractsP;
@@ -399,6 +403,7 @@ function addNode(relationSummary, node) {
 function getMaxContractAmount(records) {
   let maxContractAmount = 0;
   for (const r in records) {
+    // console.log("getMaxContractAmount",typeof records, typeof r, r, records[r], records)
     if (Object.prototype.hasOwnProperty.call(records, r)) {
       const compiledRelease = records[r].compiledRelease;
       for (const c in compiledRelease.contracts) {
@@ -629,9 +634,11 @@ async function addGraphs(collection, array, db) {
       const item = array[1][index];
 
       // console.log('addContracts 2', index);
-      const buyerContracts = await getContracts('buyer', item.id, db, 10000);
-      const supplierContracts = await getContracts('supplier', item.id, db, 10000);
-      const funderContracts = await getContracts('funder', item.id, db, 10000);
+      const buyerContracts = await getContracts('buyer', item.id, db, 5000);
+      const supplierContracts = await getContracts('supplier', item.id, db, 5000);
+      const funderContracts = await getContracts('funder', item.id, db, 5000);
+
+      // console.log("addGraphs",buyerContracts);
 
       item.summaries = calculateSummaries(item.id, buyerContracts, supplierContracts, funderContracts);
 
