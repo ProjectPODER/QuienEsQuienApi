@@ -313,7 +313,7 @@ async function getContracts(type, id, db, limit) {
         { 'compiledRelease.parties.contactPoint.id': id },
       ] };
 
-      options.hint = "compiledRelease.total_amount_1"  ;
+      // options.hint = "compiledRelease.total_amount_1"  ;
 
 
       break;

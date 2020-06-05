@@ -40,7 +40,12 @@ SwaggerExpress.create(config, (err, swaggerExpress) => {
   const port = process.env.PORT || 10010;
 
   const l = app.listen(port, () => {
-    process.stdout.write(`listing on port ${l.address().port}`);
+    process.stdout.write(`listing on port ${l.address().port}\n`);
+
+
+    var pjson = require('./package.json');
+
+    process.stdout.write("QuienEsQuienApi v"+pjson.version+ " - Started: "+ new Date()+"\n");
   });
 
 });
