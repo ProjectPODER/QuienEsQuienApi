@@ -1,5 +1,5 @@
 # Cómo consultar
-La API está disponible vía HTTPS en https://api.quienesquien.wiki/v2/
+La API está disponible vía HTTPS en https://api.quienesquien.wiki/v2/docs
 
 ## Filtros
 Consultar cada endpoint (extremo, o punto de consulta de la API) sin parámetros hará que se devuelva el total de las entradas, utilizando los límites por defecto (25 entradas). Si quieres modificar la consulta, limitándola a aquellas entradas que coincidan con ciertos criterios, ordeńandolas o expandiendo las referencias de cada entrada, debes usar los filtros.
