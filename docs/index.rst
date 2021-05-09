@@ -1,5 +1,7 @@
-Consultando la API de QuienEsQuien.wiki
+Esta version de la API está abandonada
 ==================================
+ 
+Revisar la nueva documentación `qqwapi-elastic en readthedocs <https://qqwapi-elastic.readthedocs.io/es/latest/>`_
 
 La API de QuienEsQuienWiki es un recurso de datos abiertos basado en estándares para facilitar el análisis corporativo y de relaciones de poder entre políticos y empresarios de latinoamérica, disponible para analistas, periodistas e investigadores de datos de todo el mundo.
 
