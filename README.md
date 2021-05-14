@@ -1,6 +1,6 @@
 # Api.QuienEsQuien.Wiki (deprecated)
 
-This version of the API has been deprecated. Check the new one: https://githuc.com/projectpoder/qqwapi-elastic
+## This version of the API has been deprecated. Check the new one: https://github.com/projectpoder/qqwapi-elastic
 
 [![build status](http://gitlab.rindecuentas.org/equipo-qqw/QuienesQuienApi/badges/dev/build.svg)](http://gitlab.rindecuentas.org/equipo-qqw/QuienesQuienApi/commits/dev)
 
